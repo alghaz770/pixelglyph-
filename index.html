@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PixelGlyph — ubah gambar jadi karakter</title>
+<meta name="description" content="PixelGlyph mengubah gambar menjadi susunan simbol, angka, atau huruf yang membentuk kembali gambar aslinya.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>@</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECEAE3;
+    --paper-alt:#E1DED3;
+    --ink:#191A1E;
+    --ink-soft:#5B5D63;
+    --line:#C7C2B4;
+    --cobalt:#2B4BDB;
+    --cobalt-tint:#E3E7FA;
+    --amber:#C77B2E;
+    --radius:2px;
+    --maxw:1180px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{background:var(--cobalt); color:var(--paper);}
+
+  a{color:var(--cobalt);}
+
+  :focus-visible{
+    outline:2px solid var(--cobalt);
+    outline-offset:2px;
+  }
+
+  .wrap{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:0 clamp(20px, 4vw, 56px);
+  }
+
+  /* ---------- header ---------- */
+  header.site{
+    padding:28px 0 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .wordmark{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:600;
+    font-size:1.35rem;
+    letter-spacing:-0.01em;
+  }
+  .wordmark em{
+    font-style:italic;
+    font-weight:500;
+    color:var(--cobalt);
+  }
+  nav.site a{
+    color:var(--ink-soft);
+    text-decoration:none;
+    font-size:0.85rem;
+    margin-left:22px;
+    border-bottom:1px solid transparent;
+  }
+  nav.site a:hover{ color:var(--ink); border-bottom-color:var(--ink-soft); }
+
+  /* ---------- hero ---------- */
+  .hero{
+    display:grid;
+    grid-template-columns:1.15fr 1fr;
+    gap:clamp(28px, 5vw, 70px);
+    align-items:center;
+    padding:clamp(48px, 8vw, 96px) 0 clamp(40px, 6vw, 72px);
+  }
+  .hero h1{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:600;
+    font-size:clamp(2.4rem, 5vw, 4.1rem);
+    line-height:1.04;
+    letter-spacing:-0.015em;
+    margin:0 0 22px;
+  }
+  .hero h1 i{ font-style:italic; font-weight:500; color:var(--cobalt); }
+  .hero p.lede{
+    max-width:42ch;
+    color:var(--ink-soft);
+    font-size:0.98rem;
+    margin:0 0 28px;
+  }
+  .hero .cta-row{ display:flex; gap:14px; flex-wrap:wrap; }
+
+  .btn{
+    font-family:inherit;
+    font-size:0.85rem;
+    padding:12px 20px;
+    border:1px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+    cursor:pointer;
+    border-radius:var(--radius);
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .btn:hover{ background:var(--ink); color:var(--paper); }
+  .btn.primary{ background:var(--ink); color:var(--paper); }
+  .btn.primary:hover{ background:var(--cobalt); border-color:var(--cobalt); }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; }
+  .btn:disabled:hover{ background:transparent; color:var(--ink); }
+  .btn.primary:disabled:hover{ background:var(--ink); }
+
+  .hero-demo{
+    border:1px solid var(--line);
+    background:var(--paper-alt);
+    padding:18px;
+    border-radius:var(--radius);
+  }
+  .hero-demo .cap{
+    display:flex;
+    justify-content:space-between;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    margin-bottom:12px;
+  }
+  #demoCanvas{
+    display:block;
+    width:100%;
+    height:auto;
+    background:var(--paper);
+  }
+
+  /* ---------- section shell ---------- */
+  section{ padding:clamp(36px, 6vw, 56px) 0; border-top:1px solid var(--line); }
+  h2{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:600;
+    font-size:clamp(1.5rem, 3vw, 2rem);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .section-note{ color:var(--ink-soft); font-size:0.9rem; margin:0 0 28px; max-width:56ch; }
+
+  /* ---------- dropzone ---------- */
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    padding:clamp(28px, 6vw, 52px) 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag{ border-color:var(--cobalt); background:var(--cobalt-tint); }
+  .dropzone .glyph{
+    font-family:'Fraunces', serif;
+    font-size:2.6rem;
+    line-height:1;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+  }
+  .dropzone strong{ color:var(--ink); font-weight:600; }
+  .dropzone .fine{ font-size:0.78rem; color:var(--ink-soft); margin-top:8px; }
+  .dropzone input[type=file]{ display:none; }
+
+  /* ---------- controls ---------- */
+  .controls{
+    margin-top:28px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px clamp(18px, 3vw, 30px);
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+    gap:24px 28px;
+  }
+  .control-group label.name{
+    display:block;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-bottom:9px;
+  }
+  select, input[type=text]{
+    width:100%;
+    font-family:inherit;
+    font-size:0.85rem;
+    padding:9px 10px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    color:var(--ink);
+  }
+  select:focus, input[type=text]:focus{ border-color:var(--cobalt); }
+
+  input[type=range]{
+    width:100%;
+    accent-color:var(--cobalt);
+  }
+  .range-value{ font-size:0.78rem; color:var(--ink-soft); margin-top:6px; }
+
+  .toggle-group{ display:flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .toggle-group button{
+    flex:1;
+    font-family:inherit;
+    font-size:0.8rem;
+    padding:9px 8px;
+    border:none;
+    background:var(--paper);
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-right:1px solid var(--line);
+  }
+  .toggle-group button:last-child{ border-right:none; }
+  .toggle-group button.active{ background:var(--ink); color:var(--paper); }
+
+  .checkbox-row{ display:flex; align-items:center; gap:9px; padding-top:6px; }
+  .checkbox-row input{ accent-color:var(--cobalt); width:16px; height:16px; }
+  .checkbox-row label{ font-size:0.85rem; color:var(--ink); cursor:pointer; }
+
+  /* ---------- kolom hasil (tempel teks) ---------- */
+  textarea{
+    width:100%;
+    font-family:inherit;
+    font-size:0.85rem;
+    padding:14px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    color:var(--ink);
+    resize:vertical;
+    min-height:150px;
+    line-height:1.5;
+  }
+  textarea:focus{ border-color:var(--cobalt); }
+
+  .panel-simple{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+    background:var(--paper-alt);
+    overflow-x:auto;
+  }
+  .panel-simple .cap{ font-size:0.72rem; color:var(--ink-soft); margin-bottom:12px; }
+  #pasteCanvas{ display:block; width:100%; height:auto; background:var(--paper); }
+
+  /* ---------- output ---------- */
+  .output-shell{ margin-top:34px; display:none; }
+  .output-shell.show{ display:block; }
+
+  .compare-shell{ margin-bottom:20px; }
+  .compare{
+    position:relative;
+    width:100%;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--paper-alt);
+    aspect-ratio:4/3;
+  }
+  .compare img,
+  .compare canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .compare img{ object-fit:cover; }
+  .compare canvas{ object-fit:fill; clip-path:inset(0 50% 0 0); }
+  .compare-label{
+    position:absolute;
+    top:10px;
+    font-size:0.7rem;
+    padding:4px 9px;
+    background:rgba(236,234,227,.88);
+    color:var(--ink-soft);
+    border-radius:2px;
+    pointer-events:none;
+    letter-spacing:0.01em;
+  }
+  .compare-label.left{ left:10px; }
+  .compare-label.right{ right:10px; }
+  .compare-divider{
+    position:absolute;
+    top:0; bottom:0;
+    width:2px;
+    background:var(--cobalt);
+    left:50%;
+    transform:translateX(-1px);
+    pointer-events:none;
+  }
+  .compare-divider::after{
+    content:'';
+    position:absolute;
+    top:50%; left:50%;
+    width:30px; height:30px;
+    border-radius:50%;
+    background:var(--cobalt);
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 0 4px var(--paper);
+  }
+  .compare-range{ width:100%; margin-top:14px; accent-color:var(--cobalt); }
+  .compare-caption{
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-top:8px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+
+  .actions{ display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+  .actions .btn{ font-size:0.8rem; padding:10px 16px; }
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:26px 0 40px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:900px){
+    .hero{ grid-template-columns:1fr; }
+  }
+
+  @media (max-width:560px){
+    .compare-label{ font-size:0.65rem; padding:3px 7px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    #demoCanvas{ clip-path:inset(0 0 0 0) !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="site">
+    <div class="wordmark">Pixel<em>Glyph</em></div>
+    <nav class="site">
+      <a href="#tool">Alat</a>
+      <a href="#kolom-hasil">Kolom hasil</a>
+      <a href="#cara">Cara kerja</a>
+    </nav>
+  </header>
+
+  <section class="hero" style="border-top:none; padding-top:clamp(48px,8vw,96px);">
+    <div class="hero-copy">
+      <h1>Setiap piksel,<br><i>jadi karakter.</i></h1>
+      <p class="lede">PixelGlyph membaca gambarmu titik demi titik, lalu menyusunnya kembali memakai simbol, angka, atau huruf — hasilnya tetap bisa dikenali sebagai gambar semula.</p>
+      <div class="cta-row">
+        <a href="#tool" class="btn primary">Coba sekarang</a>
+        <a href="#cara" class="btn">Lihat cara kerja</a>
+      </div>
+    </div>
+    <div class="hero-demo">
+      <div class="cap"><span>contoh_langsung.txt</span><span id="demoRamp">.:-=+*#%@</span></div>
+      <canvas id="demoCanvas" width="480" height="252"></canvas>
+    </div>
+  </section>
+
+  <section id="tool">
+    <h2>Ubah gambarmu</h2>
+    <p class="section-note">Jatuhkan sebuah gambar, atau pilih dari perangkatmu. Semua proses berjalan langsung di peramban — gambar tidak dikirim ke mana pun.</p>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Unggah gambar">
+      <div class="glyph">#@%</div>
+      <div><strong>Jatuhkan gambar di sini</strong>, atau klik untuk memilih file</div>
+      <div class="fine">Mendukung JPG, PNG, WEBP — maksimal 500MB — diproses sepenuhnya di perangkatmu</div>
+      <div class="fine" id="fileError" style="display:none; color:var(--amber); margin-top:6px;">Ukuran file melebihi 500MB. Pilih gambar yang lebih kecil.</div>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label class="name" for="rampSelect">Set karakter</label>
+        <select id="rampSelect">
+          <option value="classic" selected>Klasik — . : - = + * # % @</option>
+          <option value="detailed">Rinci — gradasi halus</option>
+          <option value="blocks">Blok — ░ ▒ ▓ █</option>
+          <option value="binary">Biner — 0 1</option>
+          <option value="custom">Kustom — tulis sendiri</option>
+        </select>
+        <input type="text" id="customRamp" placeholder="terang ke gelap, mis: .oX@" style="margin-top:8px; display:none;">
+      </div>
+
+      <div class="control-group">
+        <label class="name" for="colsRange">Kepadatan (kolom karakter)</label>
+        <input type="range" id="colsRange" min="30" max="160" value="90">
+        <div class="range-value"><span id="colsValue">90</span> kolom</div>
+      </div>
+
+      <div class="control-group">
+        <span class="name">Mode warna</span>
+        <div class="toggle-group" id="colorToggle">
+          <button data-mode="ink" class="active" type="button">Tinta monokrom</button>
+          <button data-mode="original" type="button">Warna asli</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="name">Lainnya</span>
+        <div class="checkbox-row">
+          <input type="checkbox" id="invertCheck">
+          <label for="invertCheck">Balik terang/gelap</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="output-shell" id="outputShell">
+      <div class="compare-shell">
+        <div class="compare" id="compareBox">
+          <img id="compareOriginal" alt="Gambar asli">
+          <canvas id="outputCanvas"></canvas>
+          <div class="compare-label left">Asli</div>
+          <div class="compare-label right">Hasil</div>
+          <div class="compare-divider" id="compareDivider"></div>
+        </div>
+        <input type="range" id="compareRange" class="compare-range" min="0" max="100" value="50" aria-label="Geser untuk membandingkan gambar asli dengan hasil">
+        <div class="compare-caption">
+          <span>Geser untuk membandingkan gambar asli dengan hasil glyph</span>
+          <span id="dimCaption"></span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="downloadPng" type="button">Unduh sebagai .png</button>
+        <button class="btn" id="downloadTxt" type="button">Unduh sebagai .txt</button>
+        <button class="btn" id="copyText" type="button">Salin teks</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="kolom-hasil">
+    <h2>Kolom hasil</h2>
+    <p class="section-note">Sudah punya teks glyph, ASCII art, atau karakter apa pun dari tempat lain? Tempel di sini untuk melihatnya dalam tampilan PixelGlyph, lengkap dengan pilihan unduhan.</p>
+
+    <div class="control-group">
+      <label class="name" for="pasteInput">Tempel teks di sini</label>
+      <textarea id="pasteInput" placeholder="Tempel hasil glyph, ASCII art, atau teks apa pun di sini..." spellcheck="false"></textarea>
+    </div>
+
+    <div class="output-shell" id="pasteShell">
+      <div class="panel-simple" style="margin-top:24px;">
+        <div class="cap">pratinjau — <span id="pasteDim"></span></div>
+        <canvas id="pasteCanvas"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="cara">
+    <h2>Cara kerja</h2>
+    <p class="section-note">Tiga langkah sederhana, semuanya terjadi di dalam peramban.</p>
+    <div class="controls" style="grid-template-columns:repeat(auto-fit, minmax(200px,1fr));">
+      <div class="control-group">
+        <label class="name">1. Baca kecerahan</label>
+        Gambar diperkecil menjadi kisi-kisi sel, lalu tiap sel dibaca tingkat kecerahannya.
+      </div>
+      <div class="control-group">
+        <label class="name">2. Cocokkan karakter</label>
+        Sel gelap dipetakan ke karakter yang lebih padat; sel terang ke karakter yang lebih jarang.
+      </div>
+      <div class="control-group">
+        <label class="name">3. Susun ulang</label>
+        Karakter-karakter itu digambar ulang pada posisinya masing-masing, membentuk kembali gambar asli.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>PixelGlyph — dibuat untuk mengubah gambar menjadi tipografi.</span>
+    <span>Berjalan sepenuhnya di perangkatmu, tanpa unggah ke server.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var RAMPS = {
+    classic: " .:-=+*#%@",
+    detailed: " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+    blocks: " ░▒▓█",
+    binary: " 01"
+  };
+
+  var CELL_W = 9, CELL_H = 16, FONT_SIZE = 14;
+  var CHAR_ASPECT = CELL_W / CELL_H;
+
+  var inkColor = "#191A1E";
+  var paperColor = "#ECEAE3";
+
+  function currentRamp(){
+    var sel = document.getElementById('rampSelect').value;
+    if (sel === 'custom'){
+      var v = document.getElementById('customRamp').value;
+      return v.length >= 2 ? v : RAMPS.classic;
+    }
+    return RAMPS[sel];
+  }
+
+  function charFor(ramp, brightness, invert){
+    var b = invert ? brightness : 1 - brightness;
+    var idx = Math.round(b * (ramp.length - 1));
+    if (idx < 0) idx = 0;
+    if (idx > ramp.length - 1) idx = ramp.length - 1;
+    return ramp[idx];
+  }
+
+  // ---------- core conversion ----------
+  function convertImageToGlyphs(img, cols, ramp, colorMode, invert){
+    cols = Math.max(10, Math.min(220, cols));
+    var rows = Math.max(4, Math.round(cols * (img.naturalHeight / img.naturalWidth) * CHAR_ASPECT));
+
+    // jaga agar gambar sangat memanjang (potret ekstrem) tidak menghasilkan
+    // kisi raksasa — kolom disusutkan proporsional bila baris kelewat banyak
+    var MAX_ROWS = 160;
+    if (rows > MAX_ROWS){
+      cols = Math.max(10, Math.round(cols * (MAX_ROWS / rows)));
+      rows = MAX_ROWS;
+    }
+
+    var sample = document.createElement('canvas');
+    sample.width = cols; sample.height = rows;
+    var sctx = sample.getContext('2d');
+    sctx.imageSmoothingEnabled = true;
+    sctx.drawImage(img, 0, 0, cols, rows);
+    var data;
+    try {
+      data = sctx.getImageData(0, 0, cols, rows).data;
+    } catch(e){
+      return null; // e.g. tainted canvas from cross-origin image
+    }
+
+    var chars = [];
+    var colors = [];
+    var textRows = [];
+
+    for (var r = 0; r < rows; r++){
+      var rowChars = [];
+      var rowColors = [];
+      var rowText = "";
+      for (var c = 0; c < cols; c++){
+        var i = (r * cols + c) * 4;
+        var rr = data[i], gg = data[i+1], bb = data[i+2], aa = data[i+3];
+        var brightness = (0.299*rr + 0.587*gg + 0.114*bb) / 255;
+        if (aa < 16) brightness = invert ? 0 : 1; // transparent -> background tone
+        var ch = charFor(ramp, brightness, invert);
+        rowChars.push(ch);
+        rowColors.push(colorMode === 'original' ? ('rgb('+rr+','+gg+','+bb+')') : inkColor);
+        rowText += ch;
+      }
+      chars.push(rowChars);
+      colors.push(rowColors);
+      textRows.push(rowText);
+    }
+
+    return { cols: cols, rows: rows, chars: chars, colors: colors, text: textRows.join('\n') };
+  }
+
+  function renderToCanvas(canvas, result, cellW, cellH, fontSize, bg){
+    canvas.width = result.cols * cellW;
+    canvas.height = result.rows * cellH;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = fontSize + "px 'IBM Plex Mono', monospace";
+    ctx.textBaseline = 'top';
+    for (var r = 0; r < result.rows; r++){
+      for (var c = 0; c < result.cols; c++){
+        var ch = result.chars[r][c];
+        if (ch === ' ') continue;
+        ctx.fillStyle = result.colors[r][c];
+        ctx.fillText(ch, c * cellW, r * cellH);
+      }
+    }
+  }
+
+  // ---------- hero demo ----------
+  function buildDemoScene(){
+    var w = 96, h = 50;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, '#f2f2f2');
+    g.addColorStop(1, '#9a9a9a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(70, 14, 9, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#4a4a4a';
+    ctx.beginPath();
+    ctx.moveTo(-5, h);
+    ctx.lineTo(30, 16);
+    ctx.lineTo(58, h);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#232323';
+    ctx.beginPath();
+    ctx.moveTo(20, h);
+    ctx.lineTo(55, 8);
+    ctx.lineTo(101, h);
+    ctx.closePath();
+    ctx.fill();
+
+    return c;
+  }
+
+  function initDemo(){
+    var scene = buildDemoScene();
+    var cols = 60;
+    var ramp = RAMPS.classic;
+    document.getElementById('demoRamp').textContent = ramp.trim();
+    var result = convertImageToGlyphs(scene, cols, ramp, 'ink', false);
+    if (!result) return;
+    var canvas = document.getElementById('demoCanvas');
+    var cw = 8, ch = 13, fs = 11;
+    renderToCanvas(canvas, result, cw, ch, fs, paperColor);
+
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    function playReveal(){
+      canvas.style.transition = 'none';
+      canvas.style.clipPath = 'inset(0 100% 0 0)';
+      // force reflow
+      void canvas.offsetWidth;
+      canvas.style.transition = 'clip-path 1.6s cubic-bezier(.2,.7,.2,1)';
+      canvas.style.clipPath = 'inset(0 0% 0 0)';
+    }
+    playReveal();
+    setInterval(playReveal, 9000);
+  }
+
+  // ---------- tool wiring ----------
+  function initTool(){
+    var dropzone = document.getElementById('dropzone');
+    var fileInput = document.getElementById('fileInput');
+    var rampSelect = document.getElementById('rampSelect');
+    var customRamp = document.getElementById('customRamp');
+    var colsRange = document.getElementById('colsRange');
+    var colsValue = document.getElementById('colsValue');
+    var colorToggle = document.getElementById('colorToggle');
+    var invertCheck = document.getElementById('invertCheck');
+    var outputShell = document.getElementById('outputShell');
+    var compareBox = document.getElementById('compareBox');
+    var compareOriginal = document.getElementById('compareOriginal');
+    var compareRange = document.getElementById('compareRange');
+    var compareDivider = document.getElementById('compareDivider');
+    var outputCanvas = document.getElementById('outputCanvas');
+    var dimCaption = document.getElementById('dimCaption');
+    var downloadPngBtn = document.getElementById('downloadPng');
+    var downloadTxtBtn = document.getElementById('downloadTxt');
+    var copyBtn = document.getElementById('copyText');
+
+    var currentImage = null;
+    var currentFileBase = 'pixelglyph';
+    var colorMode = 'ink';
+    var lastResult = null;
+    var pending = null;
+    var MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB — tepat 500MB masih diterima
+    var fileError = document.getElementById('fileError');
+
+    function sanitizeBaseName(name){
+      var base = name.replace(/\.[^/.]+$/, ''); // buang ekstensi asli
+      base = base.trim().replace(/[\\/:*?"<>|]+/g, '_');
+      return base || 'pixelglyph';
+    }
+
+    function openPicker(){ fileInput.click(); }
+    dropzone.addEventListener('click', openPicker);
+    dropzone.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPicker(); }
+    });
+
+    ['dragenter','dragover'].forEach(function(evt){
+      dropzone.addEventListener(evt, function(e){
+        e.preventDefault(); dropzone.classList.add('drag');
+      });
+    });
+    ['dragleave','drop'].forEach(function(evt){
+      dropzone.addEventListener(evt, function(e){
+        e.preventDefault(); dropzone.classList.remove('drag');
+      });
+    });
+    dropzone.addEventListener('drop', function(e){
+      var f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadFile(f);
+    });
+    fileInput.addEventListener('change', function(e){
+      var f = e.target.files && e.target.files[0];
+      if (f) loadFile(f);
+    });
+
+    function loadFile(file){
+      if (!file.type.match(/^image\//)) return;
+      if (file.size > MAX_FILE_SIZE){
+        fileError.style.display = 'block';
+        return;
+      }
+      fileError.style.display = 'none';
+      currentFileBase = sanitizeBaseName(file.name);
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var img = new Image();
+        img.onload = function(){
+          currentImage = img;
+          compareOriginal.src = e.target.result;
+          compareBox.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+          compareRange.value = 50;
+          updateCompareClip(50);
+          outputShell.classList.add('show');
+          scheduleConvert();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    rampSelect.addEventListener('change', function(){
+      customRamp.style.display = rampSelect.value === 'custom' ? 'block' : 'none';
+      scheduleConvert();
+    });
+    customRamp.addEventListener('input', scheduleConvert);
+    colsRange.addEventListener('input', function(){
+      colsValue.textContent = colsRange.value;
+      scheduleConvert();
+    });
+    invertCheck.addEventListener('change', scheduleConvert);
+
+    function updateCompareClip(value){
+      var v = Math.max(0, Math.min(100, value));
+      outputCanvas.style.clipPath = 'inset(0 ' + (100 - v) + '% 0 0)';
+      compareDivider.style.left = v + '%';
+    }
+    compareRange.addEventListener('input', function(){
+      updateCompareClip(parseInt(compareRange.value, 10));
+    });
+    updateCompareClip(50);
+
+    colorToggle.addEventListener('click', function(e){
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      colorMode = btn.getAttribute('data-mode');
+      Array.prototype.forEach.call(colorToggle.querySelectorAll('button'), function(b){
+        b.classList.toggle('active', b === btn);
+      });
+      scheduleConvert();
+    });
+
+    function scheduleConvert(){
+      if (!currentImage) return;
+      clearTimeout(pending);
+      pending = setTimeout(runConvert, 90);
+    }
+
+    function runConvert(){
+      var cols = parseInt(colsRange.value, 10);
+      var ramp = currentRamp();
+      var invert = invertCheck.checked;
+      var result = convertImageToGlyphs(currentImage, cols, ramp, colorMode, invert);
+      if (!result) return;
+      lastResult = result;
+      renderToCanvas(outputCanvas, result, CELL_W, CELL_H, FONT_SIZE, paperColor);
+      dimCaption.textContent = result.cols + ' × ' + result.rows + ' karakter';
+    }
+
+    downloadPngBtn.addEventListener('click', function(){
+      if (!lastResult) return;
+      outputCanvas.toBlob(function(blob){
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = currentFileBase + '_pixelpng.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      });
+    });
+
+    downloadTxtBtn.addEventListener('click', function(){
+      if (!lastResult) return;
+      var blob = new Blob([lastResult.text], {type:'text/plain'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = currentFileBase + '_pixeltxt.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    copyBtn.addEventListener('click', function(){
+      if (!lastResult) return;
+      navigator.clipboard.writeText(lastResult.text).then(function(){
+        var original = copyBtn.textContent;
+        copyBtn.textContent = 'Tersalin';
+        setTimeout(function(){ copyBtn.textContent = original; }, 1400);
+      });
+    });
+  }
+
+  // ---------- kolom hasil (tempel teks) ----------
+  function initPasteTool(){
+    var pasteInput = document.getElementById('pasteInput');
+    var pasteShell = document.getElementById('pasteShell');
+    var pasteCanvas = document.getElementById('pasteCanvas');
+    var pasteDim = document.getElementById('pasteDim');
+
+    var PASTE_MAX_COLS = 300;
+    var PASTE_MAX_ROWS = 300;
+    var pending = null;
+
+    function renderPaste(){
+      var raw = pasteInput.value.replace(/\r\n/g, '\n').replace(/\t/g, '    ');
+      if (!raw.trim()){
+        pasteShell.classList.remove('show');
+        return;
+      }
+      var lines = raw.split('\n');
+      var rows = Math.max(1, Math.min(PASTE_MAX_ROWS, lines.length));
+      var maxCols = 0;
+      for (var i = 0; i < rows; i++){
+        if (lines[i].length > maxCols) maxCols = lines[i].length;
+      }
+      var cols = Math.max(1, Math.min(PASTE_MAX_COLS, maxCols));
+
+      var chars = [];
+      var colors = [];
+      for (var r = 0; r < rows; r++){
+        var line = lines[r] || '';
+        var rowChars = [];
+        var rowColors = [];
+        for (var c = 0; c < cols; c++){
+          rowChars.push(line[c] || ' ');
+          rowColors.push(inkColor);
+        }
+        chars.push(rowChars);
+        colors.push(rowColors);
+      }
+
+      var result = { cols: cols, rows: rows, chars: chars, colors: colors, text: '' };
+      renderToCanvas(pasteCanvas, result, CELL_W, CELL_H, FONT_SIZE, paperColor);
+      pasteDim.textContent = cols + ' × ' + rows + ' karakter';
+      pasteShell.classList.add('show');
+    }
+
+    pasteInput.addEventListener('input', function(){
+      clearTimeout(pending);
+      pending = setTimeout(renderPaste, 120);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    initDemo();
+    initTool();
+    initPasteTool();
+  });
+})();
+</script>
+</body>
+</html>
